@@ -25,7 +25,7 @@ def saveAnalysisResult(fileName, question, answer, modelName):
         connection = getConnection()
         with connection.cursor() as cursor:
             # 테이블이 없는 경우 생성 (분석결과 저장용)
-            createTableSql = \"\"\"
+            createTableSql = """
             CREATE TABLE IF NOT EXISTS analysis_results (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 file_name VARCHAR(255),
@@ -34,14 +34,14 @@ def saveAnalysisResult(fileName, question, answer, modelName):
                 model_name VARCHAR(50),
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
-            \"\"\"
+            """
             cursor.execute(createTableSql)
             
             # 데이터 삽입
-            insertSql = \"\"\"
+            insertSql = """
             INSERT INTO analysis_results (file_name, question, answer, model_name)
             VALUES (%s, %s, %s, %s)
-            \"\"\"
+            """
             cursor.execute(insertSql, (fileName, question, answer, modelName))
             
         connection.commit()
