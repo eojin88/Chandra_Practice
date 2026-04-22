@@ -1,0 +1,20 @@
+# 환경 변수 및 보안
+.env
+
+# Python 가상환경 및 캐시
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# OS 및 에디터 설정
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
+
+# 데이터셋 (용량이 크거나 수시로 변하는 경우)
+dataset/
