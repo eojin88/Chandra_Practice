@@ -1,41 +1,83 @@
-import mysql.connector
+# pip install pymysql cryptography
+
 import os
+import pymysql
 from dotenv import load_dotenv
 
+# 환경 변수 로드
 load_dotenv()
 
-def getDatabaseConnection():
-    """ MySQL 데이터베이스 연결을 생성하고 반환합니다."""
-    try:
-        connection = mysql.connector.connect(
-            host=os.getenv("MYSQL_HOST"),
-            user=os.getenv("MYSQL_USER"),
-            password=os.getenv("MYSQL_PASSWORD"),
-            database=os.getenv("MYSQL_DATABASE")
-        )
-        return connection
-    except Exception as e:
-        print(f"Error: {e}")
-        return None
+def getConnection():
+    """ MySQL 데이터베이스 연결을 생성하여 반환합니다. """
+    return pymysql.connect(
+        host=os.getenv("DB_HOST"),
+        user=os.getenv("DB_USER"),
+        password=os.getenv("DB_PASSWORD"),
+        database=os.getenv("DB_NAME"),
+        charset='utf8mb4',
+        cursorclass=pymysql.cursors.DictCursor
+    )
 
-def executeQuery(query, params=None):
-    """ SQL 쿼리를 실행합니다."""
+def saveAnalysisResult(fileName, question, answer, modelName):
+    """ 분석 결과를 MySQL 데이터베이스에 저장합니다. """
+    connection = None
     try:
-        connection = getDatabaseConnection()
-        if connection is None:
-            return {"success": False, "message": "데이터베이스 연결 실패"}
-        
-        cursor = connection.cursor(dictionary=True)
-        cursor.execute(query, params or ())
-        
-        if query.strip().upper().startswith("SELECT"):
-            result = cursor.fetchall()
-        else:
-            connection.commit()
-            result = cursor.rowcount
+        connection = getConnection()
+        with connection.cursor() as cursor:
+            # 테이블이 없는 경우 생성 (분석결과 저장용)
+            createTableSql = \"\"\"
+            CREATE TABLE IF NOT EXISTS analysis_results (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                file_name VARCHAR(255),
+                question TEXT,
+                answer TEXT,
+                model_name VARCHAR(50),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            \"\"\"
+            cursor.execute(createTableSql)
             
-        cursor.close()
-        connection.close()
-        return {"success": True, "data": result}
+            # 데이터 삽입
+            insertSql = \"\"\"
+            INSERT INTO analysis_results (file_name, question, answer, model_name)
+            VALUES (%s, %s, %s, %s)
+            \"\"\"
+            cursor.execute(insertSql, (fileName, question, answer, modelName))
+            
+        connection.commit()
+        return True
+        
     except Exception as e:
-        return {"success": False, "message": str(e)}
+        if connection:
+            connection.rollback()
+        print(f"DB 저장 에러: {str(e)}")
+        return False
+        
+    finally:
+        if connection:
+            connection.close()
+
+def getAllResults():
+    """ 저장된 모든 분석 결과를 조회합니다. """
+    connection = None
+    results = []
+    try:
+        connection = getConnection()
+        with connection.cursor() as cursor:
+            sql = "SELECT * FROM analysis_results ORDER BY created_at DESC"
+            cursor.execute(sql)
+            rows = cursor.fetchall()
+            
+            # 리스트 컴프리헨션 대신 명시적 for 루프 사용 (가이드 준수)
+            for i in range(0, len(rows)):
+                results.append(rows[i])
+                
+        return results
+        
+    except Exception as e:
+        print(f"DB 조회 에러: {str(e)}")
+        return []
+        
+    finally:
+        if connection:
+            connection.close()
